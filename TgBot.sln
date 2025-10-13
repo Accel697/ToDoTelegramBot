@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36518.9 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ToDoBot", "TgBot\ToDoBot.csproj", "{F8F1F19A-73CB-4C3C-B019-3B14A37E2C54}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ToDo.Core", "ToDo.Core\ToDo.Core.csproj", "{736018AA-4F69-4D95-825B-A06B572CEBDC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F8F1F19A-73CB-4C3C-B019-3B14A37E2C54}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F8F1F19A-73CB-4C3C-B019-3B14A37E2C54}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F8F1F19A-73CB-4C3C-B019-3B14A37E2C54}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F8F1F19A-73CB-4C3C-B019-3B14A37E2C54}.Release|Any CPU.Build.0 = Release|Any CPU
+		{736018AA-4F69-4D95-825B-A06B572CEBDC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{736018AA-4F69-4D95-825B-A06B572CEBDC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{736018AA-4F69-4D95-825B-A06B572CEBDC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{736018AA-4F69-4D95-825B-A06B572CEBDC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {12F5AB2E-4A58-40BE-AB1C-90AB883084B7}
+	EndGlobalSection
+EndGlobal
