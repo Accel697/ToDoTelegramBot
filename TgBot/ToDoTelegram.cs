@@ -24,7 +24,7 @@ namespace ToDoBot
 
         public async Task StartAsync()
         {
-            var me = await _botClient.GetMe();
+            var me = await _botClient.GetMeAsync();
             Console.WriteLine($"Бот запущен: {me.Username}");
 
             _botClient.StartReceiving(UpdateHandler, ErrorHandler);
@@ -89,27 +89,27 @@ namespace ToDoBot
                     break;
                 case "Добавить задачу":
                     _userStates[userId] = "ADD_TASK";
-                    await _botClient.SendMessage(chatId, "Введите название новой задачи:");
+                    await _botClient.SendTextMessageAsync(chatId, "Введите название новой задачи:");
                     break;
                 case "Найти задачу":
                     _userStates[userId] = "SEARCH_TASK";
-                    await _botClient.SendMessage(chatId, "Введите текст для поиска:");
+                    await _botClient.SendTextMessageAsync(chatId, "Введите текст для поиска:");
                     break;
                 case "Отметить выполненную":
                     _userStates[userId] = "MARK_DONE";
-                    await _botClient.SendMessage(chatId, "Введите ID задачи для отметки как выполненной:");
+                    await _botClient.SendTextMessageAsync(chatId, "Введите ID задачи для отметки как выполненной:");
                     break;
                 case "Отметить невыполненную":
                     _userStates[userId] = "MARK_UNDONE";
-                    await _botClient.SendMessage(chatId, "Введите ID задачи для отметки как невыполненной:");
+                    await _botClient.SendTextMessageAsync(chatId, "Введите ID задачи для отметки как невыполненной:");
                     break;
                 case "Переименовать задачу":
                     _userStates[userId] = "RENAME_TASK";
-                    await _botClient.SendMessage(chatId, "Введите ID и новое название задачи в формате: \nID Новое название");
+                    await _botClient.SendTextMessageAsync(chatId, "Введите ID и новое название задачи в формате: \nID Новое название");
                     break;
                 case "Удалить задачу":
                     _userStates[userId] = "DELETE_TASK";
-                    await _botClient.SendMessage(chatId, "Введите ID задачи для удаления:");
+                    await _botClient.SendTextMessageAsync(chatId, "Введите ID задачи для удаления:");
                     break;
                 default:
                     await ShowMainMenu(chatId);
@@ -149,7 +149,7 @@ namespace ToDoBot
             }
             catch (Exception ex)
             {
-                await _botClient.SendMessage(chatId, $"Ошибка: {ex.Message}");
+                await _botClient.SendTextMessageAsync(chatId, $"Ошибка: {ex.Message}");
             }
 
             await ShowMainMenu(chatId);
@@ -169,7 +169,7 @@ namespace ToDoBot
                 OneTimeKeyboard = false
             };
 
-            await _botClient.SendMessage(chatId, "Выберите действие:", replyMarkup: replyKeyboard);
+            await _botClient.SendTextMessageAsync(chatId, "Выберите действие:", replyMarkup: replyKeyboard);
         }
 
         private async Task ShowToDoList(long userId, long chatId)
@@ -177,13 +177,13 @@ namespace ToDoBot
             var todoList = _userLists[userId];
             if (todoList.Count == 0)
             {
-                await _botClient.SendMessage(chatId, "Список задач пуст.");
+                await _botClient.SendTextMessageAsync(chatId, "Список задач пуст.");
                 return;
             }
 
             var tasks = todoList.Items.Select(item => $"{item.Id} {item.Title} - {(item.IsDone ? "Выполнена" : "Не выполнена")}");
 
-            await _botClient.SendMessage(chatId, "Ваши задачи:\n" + string.Join("\n", tasks), parseMode: ParseMode.Markdown);
+            await _botClient.SendTextMessageAsync(chatId, "Ваши задачи:\n" + string.Join("\n", tasks), parseMode: ParseMode.Markdown);
         }
 
         private async Task ShowTaskCount(long userId, long chatId)
@@ -193,19 +193,19 @@ namespace ToDoBot
             var done = todoList.Items.Count(item => item.IsDone);
             var undone = total - done;
 
-            await _botClient.SendMessage(chatId, $"Всего: {total} \nВыполнено: {done} \nНе выполнено: {undone}");
+            await _botClient.SendTextMessageAsync(chatId, $"Всего: {total} \nВыполнено: {done} \nНе выполнено: {undone}");
         }
 
         private async Task AddTask(ToDoList todoList, string title, long chatId)
         {
             if (string.IsNullOrWhiteSpace(title))
             {
-                await _botClient.SendMessage(chatId, "Название задачи не может быть пустым");
+                await _botClient.SendTextMessageAsync(chatId, "Название задачи не может быть пустым");
                 return;
             }
 
             var newItem = todoList.Add(title);
-            await _botClient.SendMessage(chatId, $"Задача добавлена!\n{newItem.Id} {title}", parseMode: ParseMode.Markdown);
+            await _botClient.SendTextMessageAsync(chatId, $"Задача добавлена\n{newItem.Id} {title}", parseMode: ParseMode.Markdown);
         }
 
         private async Task SearchTasks(ToDoList todoList, string searchText, long chatId)
@@ -215,27 +215,27 @@ namespace ToDoBot
 
             if (!searchResults.Any())
             {
-                await _botClient.SendMessage(chatId, "Задачи не найдены");
+                await _botClient.SendTextMessageAsync(chatId, "Задачи не найдены");
                 return;
             }
 
             var result = "Результаты поиска:\n" + string.Join("\n", searchResults.Select(item => $"`{item.Id}` - {item.Title} {(item.IsDone ? "Выполнена" : "Не выполнена")}"));
 
-            await _botClient.SendMessage(chatId, result, parseMode: ParseMode.Markdown);
+            await _botClient.SendTextMessageAsync(chatId, result, parseMode: ParseMode.Markdown);
         }
 
         private async Task MarkTask(ToDoList todoList, string input, long chatId, bool markAsDone)
         {
-            if (!Guid.TryParse(input, out var taskId))
+            if (!long.TryParse(input, out var taskId))
             {
-                await _botClient.SendMessage(chatId, "Неверный формат ID");
+                await _botClient.SendTextMessageAsync(chatId, "Неверный формат ID");
                 return;
             }
 
             var item = todoList.GetById(taskId);
             if (item == null)
             {
-                await _botClient.SendMessage(chatId, "Задача не найдена");
+                await _botClient.SendTextMessageAsync(chatId, "Задача не найдена");
                 return;
             }
 
@@ -245,46 +245,46 @@ namespace ToDoBot
                 item.MarkUndone();
 
             var status = markAsDone ? "выполнена" : "не выполнена";
-            await _botClient.SendMessage(chatId, $"Задача отмечена как {status}");
+            await _botClient.SendTextMessageAsync(chatId, $"Задача отмечена как {status}");
         }
 
         private async Task RenameTask(ToDoList todoList, string input, long chatId)
         {
             var parts = input.Split(' ', 2);
-            if (parts.Length != 2 || !Guid.TryParse(parts[0], out var taskId))
+            if (parts.Length != 2 || !long.TryParse(parts[0], out var taskId))
             {
-                await _botClient.SendMessage(chatId, "Неверный формат. Используйте:\nID Новое название");
+                await _botClient.SendTextMessageAsync(chatId, "Неверный формат. Используйте:\nID Новое название");
                 return;
             }
 
             var item = todoList.GetById(taskId);
             if (item == null)
             {
-                await _botClient.SendMessage(chatId, "Задача не найдена");
+                await _botClient.SendTextMessageAsync(chatId, "Задача не найдена");
                 return;
             }
 
             try
             {
                 item.Rename(parts[1]);
-                await _botClient.SendMessage(chatId, "Задача переименована");
+                await _botClient.SendTextMessageAsync(chatId, "Задача переименована");
             }
             catch (ArgumentException)
             {
-                await _botClient.SendMessage(chatId, "Новое название не может быть пустым");
+                await _botClient.SendTextMessageAsync(chatId, "Новое название не может быть пустым");
             }
         }
 
         private async Task DeleteTask(ToDoList todoList, string input, long chatId)
         {
-            if (!Guid.TryParse(input, out var taskId))
+            if (!long.TryParse(input, out var taskId))
             {
-                await _botClient.SendMessage(chatId, "Неверный формат ID");
+                await _botClient.SendTextMessageAsync(chatId, "Неверный формат ID");
                 return;
             }
 
             var removed = todoList.Remove(taskId);
-            await _botClient.SendMessage(chatId, removed ? "Задача удалена!" : "Задача не найдена");
+            await _botClient.SendTextMessageAsync(chatId, removed ? "Задача удалена" : "Задача не найдена");
         }
     }
 }

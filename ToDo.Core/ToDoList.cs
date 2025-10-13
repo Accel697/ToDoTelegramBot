@@ -25,12 +25,12 @@ namespace ToDo.Core
             return item;
         }
 
-        public bool Remove(Guid id) => _items.RemoveAll(i => i.Id == id) > 0;
+        public bool Remove(long id) => _items.RemoveAll(i => i.Id == id) > 0;
 
         public IEnumerable<ToDoItem> Find(string substring) => _items.Where(i => i.Title.Contains(substring ?? string.Empty, StringComparison.OrdinalIgnoreCase));
 
         public int Count => _items.Count;
 
-        public ToDoItem GetById(Guid id) => _items.FirstOrDefault(i => i.Id == id);
+        public ToDoItem GetById(long id) => _items.FirstOrDefault(i => i.Id == id);
     }
 }

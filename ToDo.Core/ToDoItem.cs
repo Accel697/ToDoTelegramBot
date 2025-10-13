@@ -8,7 +8,9 @@ namespace ToDo.Core
 {
     public class ToDoItem
     {
-        public Guid Id { get; } = Guid.NewGuid();
+        private static long _id = 0;
+
+        public long Id { get; } = _id += 1;
 
         public string Title { get; private set; }
 
