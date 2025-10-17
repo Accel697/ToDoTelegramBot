@@ -1,12 +1,22 @@
 ﻿using ToDoBot;
+using DotNetEnv;
+using ToDoBot.Services;
 
 class Program
 {
     static async Task Main(string[] args)
     {
-        string botToken = "8367951186:AAETH3iVQrmrsU6Xi-34YszXy1CyrYJH0eM";
+        Env.Load();
+        var botToken = Env.GetString("BotToken");
 
-        var bot = new ToDoTelegram(botToken);
-        await bot.StartAsync();
+        if (botToken == null)
+        {
+            Console.WriteLine("Токен не найден");
+        }
+        else
+        {
+            var bot = new ToDoTelegram(botToken);
+            await bot.StartAsync();
+        }
     }
 }
