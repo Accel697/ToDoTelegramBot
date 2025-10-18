@@ -15,9 +15,12 @@ namespace ToDoBot.Model
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             Env.Load();
-            var server = Env.GetString("Server");
+            var host = Env.GetString("Host");
+            var port = Env.GetString("Port");
             var database = Env.GetString("Database");
-            optionsBuilder.UseSqlServer($"Server={server};Database={database};Trusted_Connection=true;TrustServerCertificate=true;");
+            var username = Env.GetString("Username");
+            var password = Env.GetString("Password");
+            optionsBuilder.UseNpgsql($"Host={host};Port={port};Database={database};Username={username};Password={password}");
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -24,7 +24,7 @@ namespace ToDoBot.Services
 
         public async Task<ToDoListItem> AddItem(long userId, string title)
         {
-            var maxItemId = await _context.ToDoListItems.Where(x => x.UserId == userId).MaxAsync(x => (long?)x.ItemId) ?? 0;
+            var maxItemId = await _context.ToDoListItems.AsNoTracking().Where(x => x.UserId == userId).MaxAsync(x => (long?)x.ItemId) ?? 0;
 
             var newItem = new ToDoListItem
             {
@@ -34,7 +34,8 @@ namespace ToDoBot.Services
                 IsDone = false
             };
 
-            await _context.ToDoListItems.AddAsync(newItem);
+            _context.ToDoListItems.Add(newItem);
+
             await _context.SaveChangesAsync();
 
             return newItem;
