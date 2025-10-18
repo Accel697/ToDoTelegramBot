@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: todo-postgres
+    environment:
+      POSTGRES_USER: ${Username}
+      POSTGRES_PASSWORD: ${Password}
+      POSTGRES_DB: ${Database}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${Username} -d ${Database}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  todo-bot:
+    build: .
+    container_name: todo-bot
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
