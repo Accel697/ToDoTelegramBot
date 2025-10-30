@@ -17,90 +17,207 @@ namespace ToDoBot.Services
             _context = context;
         }
 
-        public async Task<List<ToDoListItem>> GetUserItems(long userId)
+        // Работа с пользователями
+        public async Task<User> GetOrCreateUser(long userId, string userName)
         {
-            return await _context.ToDoListItems.Where(x => x.UserId == userId).OrderBy(x => x.ItemId).ToListAsync();
+            var user = await _context.Users.FirstOrDefaultAsync(x => x.IdUser == userId);
+            if (user == null)
+            {
+                user = new User { IdUser = userId, Name = userName.Trim() };
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+            }
+            return user;
         }
 
-        public async Task<ToDoListItem> AddItem(long userId, string title)
+        // Работа с листами
+        public async Task<List<List>> GetUserLists(long userId)
         {
-            var maxItemId = await _context.ToDoListItems.AsNoTracking().Where(x => x.UserId == userId).MaxAsync(x => (long?)x.ItemId) ?? 0;
+            return await _context.Lists.Where(x => x.UserList == userId).OrderBy(x => x.IdList).ToListAsync();
+        }
 
-            var newItem = new ToDoListItem
+        public async Task<List> CreateList(long userId, string title)
+        {
+            var newList = new List
             {
-                UserId = userId,
-                ItemId = maxItemId + 1,
-                Title = title.Trim(),
-                IsDone = false
+                TitleList = title.Trim(),
+                UserList = userId
             };
 
-            _context.ToDoListItems.Add(newItem);
-
+            _context.Lists.Add(newList);
             await _context.SaveChangesAsync();
+            return newList;
+        }
 
+        public async Task<bool> RenameList(long listId, string newTitle)
+        {
+            var list = await _context.Lists.FirstOrDefaultAsync(x => x.IdList == listId);
+            if (list == null) return false;
+
+            list.TitleList = newTitle.Trim();
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> DeleteList(long listId)
+        {
+            var list = await _context.Lists.FirstOrDefaultAsync(x => x.IdList == listId);
+            if (list == null) return false;
+
+            _context.Lists.Remove(list);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<int> GetUserListsCount(long userId)
+        {
+            return await _context.Lists.CountAsync(x => x.UserList == userId);
+        }
+
+        // Работа с задачами
+        public async Task<List<Item>> GetTodayAndFutureItems(long listId)
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            return await _context.Items
+                .Where(x => x.ListItem == listId && (!x.DateItem.HasValue || x.DateItem >= today))
+                .OrderBy(x => x.DateItem)
+                .ThenBy(x => x.TimeItem)
+                .ToListAsync();
+        }
+
+        public async Task<Item> AddItem(long listId, string title, DateOnly? date = null, TimeOnly? time = null)
+        {
+            var newItem = new Item
+            {
+                TitleItem = title.Trim(),
+                StatusItem = 1, // Запланировано
+                ListItem = listId,
+                DateItem = date,
+                TimeItem = time
+            };
+
+            _context.Items.Add(newItem);
+            await _context.SaveChangesAsync();
             return newItem;
         }
 
-        public async Task<bool> RemoveItem(long userId, long itemId)
+        public async Task<bool> UpdateItem(long itemId, string? newTitle = null, DateOnly? newDate = null, TimeOnly? newTime = null)
         {
-            var item = await _context.ToDoListItems.FirstOrDefaultAsync(x => x.UserId == userId && x.ItemId == itemId);
-
+            var item = await _context.Items.FirstOrDefaultAsync(x => x.IdItem == itemId);
             if (item == null) return false;
 
-            _context.ToDoListItems.Remove(item);
+            if (newTitle != null) item.TitleItem = newTitle.Trim();
+            if (newDate.HasValue) item.DateItem = newDate;
+            if (newTime.HasValue) item.TimeItem = newTime;
+
             await _context.SaveChangesAsync();
             return true;
         }
 
-        public async Task<List<ToDoListItem>> FindItems(long userId, string substring)
+        public async Task<bool> ChangeItemStatus(long itemId, long newStatusId)
         {
-            return await _context.ToDoListItems.Where(x => x.UserId == userId && x.Title.Contains(substring ?? string.Empty)).OrderBy(x => x.ItemId).ToListAsync();
-        }
-
-        public async Task<bool> MarkAsDone(long userId, long itemId)
-        {
-            var item = await _context.ToDoListItems.FirstOrDefaultAsync(x => x.UserId == userId && x.ItemId == itemId);
-
+            var item = await _context.Items.FirstOrDefaultAsync(x => x.IdItem == itemId);
             if (item == null) return false;
 
-            item.IsDone = true;
+            item.StatusItem = newStatusId;
             await _context.SaveChangesAsync();
             return true;
         }
 
-        public async Task<bool> MarkAsUndone(long userId, long itemId)
+        public async Task<bool> DeleteItem(long itemId)
         {
-            var item = await _context.ToDoListItems.FirstOrDefaultAsync(x => x.UserId == userId && x.ItemId == itemId);
-
+            var item = await _context.Items.FirstOrDefaultAsync(x => x.IdItem == itemId);
             if (item == null) return false;
 
-            item.IsDone = false;
+            _context.Items.Remove(item);
             await _context.SaveChangesAsync();
             return true;
         }
 
-        public async Task<bool> RenameItem(long userId, long itemId, string newTitle)
+        public async Task<int> GetListItemsCount(long listId)
         {
-            if (string.IsNullOrWhiteSpace(newTitle))
-                return false;
+            return await _context.Items.CountAsync(x => x.ListItem == listId);
+        }
 
-            var item = await _context.ToDoListItems.FirstOrDefaultAsync(x => x.UserId == userId && x.ItemId == itemId);
+        public async Task<Item?> GetItemById(long itemId)
+        {
+            return await _context.Items.FirstOrDefaultAsync(x => x.IdItem == itemId);
+        }
 
-            if (item == null) return false;
+        // Работа с напоминаниями
+        public async Task<Reminder> AddReminder(long itemId, DateOnly date, TimeOnly time)
+        {
+            var reminder = new Reminder
+            {
+                ItemReminder = itemId,
+                DateReminder = date,
+                TimeReminder = time
+            };
 
-            item.Title = newTitle.Trim();
+            _context.Reminders.Add(reminder);
+            await _context.SaveChangesAsync();
+            return reminder;
+        }
+
+        public async Task<Reminder> AddReminderInMinutes(long itemId, int minutes)
+        {
+            if (minutes < 1 || minutes > 60)
+                throw new ArgumentException("Минуты должны быть от 1 до 1440");
+
+            var reminderTime = DateTime.Now.AddMinutes(minutes);
+            return await AddReminder(itemId, DateOnly.FromDateTime(reminderTime), TimeOnly.FromDateTime(reminderTime));
+        }
+
+        public async Task<Reminder> AddReminderInHours(long itemId, int hours)
+        {
+            if (hours < 1 || hours > 24)
+                throw new ArgumentException("Часы должны быть от 1 до 24");
+
+            var reminderTime = DateTime.Now.AddHours(hours);
+            return await AddReminder(itemId, DateOnly.FromDateTime(reminderTime), TimeOnly.FromDateTime(reminderTime));
+        }
+
+        // Стандартные напоминания
+        public async Task<Reminder> AddReminder15Min(long itemId)
+        {
+            return await AddReminderInMinutes(itemId, 15);
+        }
+
+        public async Task<Reminder> AddReminder1Hour(long itemId)
+        {
+            return await AddReminderInHours(itemId, 1);
+        }
+
+        public async Task<Reminder> AddReminder1Day(long itemId)
+        {
+            var reminderTime = DateTime.Now.AddDays(1);
+            return await AddReminder(itemId, DateOnly.FromDateTime(reminderTime), TimeOnly.FromDateTime(reminderTime));
+        }
+
+        public async Task<bool> RemoveReminder(long reminderId)
+        {
+            var reminder = await _context.Reminders.FirstOrDefaultAsync(x => x.IdReminder == reminderId);
+            if (reminder == null) return false;
+
+            _context.Reminders.Remove(reminder);
             await _context.SaveChangesAsync();
             return true;
         }
 
-        public async Task<ToDoListItem?> GetItemById(long userId, long itemId)
+        public async Task<List<Reminder>> GetItemReminders(long itemId)
         {
-            return await _context.ToDoListItems.FirstOrDefaultAsync(x => x.UserId == userId && x.ItemId == itemId);
+            return await _context.Reminders.Where(x => x.ItemReminder == itemId).OrderBy(x => x.DateReminder).ThenBy(x => x.TimeReminder).ToListAsync();
         }
 
-        public async Task<int> GetItemsCount(long userId)
+        // Вспомогательные методы
+        public async Task<List<ItemStatus>> GetStatuses()
         {
-            return await _context.ToDoListItems.CountAsync(x => x.UserId == userId);
+            return await _context.ItemStatuses.OrderBy(x => x.IdStatus).ToListAsync();
+        }
+
+        public async Task<bool> IsListOwner(long listId, long userId)
+        {
+            return await _context.Lists.AnyAsync(x => x.IdList == listId && x.UserList == userId);
         }
     }
 }
