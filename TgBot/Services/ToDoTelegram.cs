@@ -17,6 +17,7 @@ namespace ToDoBot.Services
         private readonly ITelegramBotClient _botClient;
         private readonly Actions _actions;
         private readonly AppDbContext _context;
+        private readonly ReminderService _reminderService;
         private readonly Dictionary<long, string> _userStates = new();
         private readonly Dictionary<long, long> _userCurrentList = new();
         private readonly Dictionary<long, long> _userCurrentItem = new();
@@ -26,15 +27,16 @@ namespace ToDoBot.Services
             _botClient = new TelegramBotClient(token);
             _context = new AppDbContext();
             _actions = new Actions(_context);
+            _reminderService = new ReminderService(token, _context);
         }
 
         public async Task StartAsync()
         {
             var me = await _botClient.GetMeAsync();
             Console.WriteLine($"Бот запущен: {me.Username}");
-
+            _reminderService.StartReminderService();
             _botClient.StartReceiving(UpdateHandler, ErrorHandler);
-            Console.WriteLine("Ожидание сообщений");
+            //Console.WriteLine("Ожидание сообщений");
             await Task.Delay(-1);
         }
 
@@ -152,9 +154,6 @@ namespace ToDoBot.Services
                     break;
                 case "Напомнить за 1 час":
                     await AddReminder1Hour(userId, chatId);
-                    break;
-                case "Напомнить за 1 день":
-                    await AddReminder1Day(userId, chatId);
                     break;
                 case "Другое напоминание":
                     _userStates[userId] = "ADD_REMINDER_CUSTOM";
@@ -315,8 +314,7 @@ namespace ToDoBot.Services
             var replyKeyboard = new ReplyKeyboardMarkup(new[]
             {
                 new[] { new KeyboardButton("Напомнить за 15 мин"), new KeyboardButton("Напомнить за 1 час") },
-                new[] { new KeyboardButton("Напомнить за 1 день"), new KeyboardButton("Другое напоминание") },
-                new[] { new KeyboardButton("Назад к задаче") }
+                new[] { new KeyboardButton("Другое напоминание"), new KeyboardButton("Назад к задаче") }
             })
             {
                 ResizeKeyboard = true,
@@ -522,7 +520,7 @@ namespace ToDoBot.Services
         private async Task ShowStatusesMenu(long userId, long chatId)
         {
             var statuses = await _actions.GetStatuses();
-            var keyboard = statuses.Select(s => new[] { new KeyboardButton($"{s.TitleStatus}") }).ToList();
+            var keyboard = statuses.Select(s => new[] { new KeyboardButton($"status_{s.IdStatus} - {s.TitleStatus}") }).ToList();
             keyboard.Add(new[] { new KeyboardButton("Назад к задаче") });
 
             var replyKeyboard = new ReplyKeyboardMarkup(keyboard)
@@ -676,7 +674,7 @@ namespace ToDoBot.Services
             }
 
             var message = "Напоминания для задачи:\n" + string.Join("\n",
-                reminders.Select(r => $"{r.IdReminder} - {r.DateReminder:dd.MM.yyyy} {r.TimeReminder:HH:mm}"));
+                reminders.Select(r => $"{r.DateReminder:dd.MM.yyyy} {r.TimeReminder:HH:mm}"));
 
             await _botClient.SendTextMessageAsync(chatId, message);
             await ShowItemMenu(userId, chatId);
@@ -684,11 +682,7 @@ namespace ToDoBot.Services
 
         private async Task AddReminder15Min(long userId, long chatId)
         {
-            if (!_userCurrentItem.ContainsKey(userId))
-            {
-                await _botClient.SendTextMessageAsync(chatId, "Задача не выбрана");
-                return;
-            }
+            if (!await CheckDateAndTime(userId, chatId)) return;
 
             try
             {
@@ -705,11 +699,7 @@ namespace ToDoBot.Services
 
         private async Task AddReminder1Hour(long userId, long chatId)
         {
-            if (!_userCurrentItem.ContainsKey(userId))
-            {
-                await _botClient.SendTextMessageAsync(chatId, "Задача не выбрана");
-                return;
-            }
+            if (!await CheckDateAndTime(userId, chatId)) return;
 
             try
             {
@@ -724,40 +714,15 @@ namespace ToDoBot.Services
             await ShowItemMenu(userId, chatId);
         }
 
-        private async Task AddReminder1Day(long userId, long chatId)
-        {
-            if (!_userCurrentItem.ContainsKey(userId))
-            {
-                await _botClient.SendTextMessageAsync(chatId, "Задача не выбрана");
-                return;
-            }
-
-            try
-            {
-                var reminder = await _actions.AddReminder1Day(_userCurrentItem[userId]);
-                await _botClient.SendTextMessageAsync(chatId, $"Напоминание установлено на: {reminder.DateReminder:dd.MM.yyyy} {reminder.TimeReminder:HH:mm}");
-            }
-            catch (Exception ex)
-            {
-                await _botClient.SendTextMessageAsync(chatId, $"Ошибка: {ex.Message}");
-            }
-
-            await ShowItemMenu(userId, chatId);
-        }
-
         private async Task AddCustomReminder(long userId, string minutesInput, long chatId)
         {
-            if (!_userCurrentItem.ContainsKey(userId))
-            {
-                await _botClient.SendTextMessageAsync(chatId, "Задача не выбрана");
-                return;
-            }
-
             if (!int.TryParse(minutesInput, out var minutes) || minutes < 1 || minutes > 60)
             {
                 await _botClient.SendTextMessageAsync(chatId, "Неверный формат. Введите число от 1 до 60");
                 return;
             }
+
+            if (!await CheckDateAndTime(userId, chatId)) return;
 
             try
             {
@@ -772,37 +737,22 @@ namespace ToDoBot.Services
             await ShowItemMenu(userId, chatId);
         }
 
-        private async Task RemoveReminder(long userId, string reminderIdInput, long chatId)
+        private async Task<bool> CheckDateAndTime(long userId, long chatId)
         {
             if (!_userCurrentItem.ContainsKey(userId))
             {
                 await _botClient.SendTextMessageAsync(chatId, "Задача не выбрана");
-                return;
+                return false;
             }
 
-            if (!long.TryParse(reminderIdInput, out var reminderId))
+            var item = await _actions.GetItemById(_userCurrentItem[userId]);
+            if (item == null || !item.DateItem.HasValue || !item.TimeItem.HasValue)
             {
-                await _botClient.SendTextMessageAsync(chatId, "Неверный формат ID напоминания");
-                return;
+                await _botClient.SendTextMessageAsync(chatId, "Сначала установите дату и время для задачи");
+                await ShowItemMenu(userId, chatId);
+                return false;
             }
-
-            // Проверяем, что напоминание принадлежит текущей задаче
-            var reminders = await _actions.GetItemReminders(_userCurrentItem[userId]);
-            if (!reminders.Any(r => r.IdReminder == reminderId))
-            {
-                await _botClient.SendTextMessageAsync(chatId, "Напоминание не найдено для этой задачи");
-                return;
-            }
-
-            var success = await _actions.RemoveReminder(reminderId);
-            if (!success)
-            {
-                await _botClient.SendTextMessageAsync(chatId, "Ошибка при удалении напоминания");
-                return;
-            }
-
-            await _botClient.SendTextMessageAsync(chatId, "Напоминание удалено");
-            await ShowItemMenu(userId, chatId);
+            return true;
         }
     }
 }
