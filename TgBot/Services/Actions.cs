@@ -85,11 +85,9 @@ namespace ToDoBot.Services
         }
 
         // Работа с задачами
-        public async Task<List<Item>> GetTodayAndFutureItems(long listId)
+        public async Task<List<Item>> GetItems(long listId)
         {
-            var today = DateOnly.FromDateTime(DateTime.Today);
             return await _context.Items
-                .Where(x => x.ListItem == listId && (!x.DateItem.HasValue || x.DateItem >= today))
                 .OrderBy(x => x.DateItem)
                 .ThenBy(x => x.TimeItem)
                 .ToListAsync();
@@ -165,7 +163,7 @@ namespace ToDoBot.Services
         }
 
         // Работа с напоминаниями
-        public async Task<Reminder> AddReminderBeforeTask(long itemId, TimeSpan timeBefore)
+        public async Task<Reminder> AddReminderBeforeTask(long itemId, int timeBefore)
         {
             var item = await _context.Items.FirstOrDefaultAsync(i => i.IdItem == itemId);
             if (item == null || !item.DateItem.HasValue || !item.TimeItem.HasValue)
@@ -173,8 +171,7 @@ namespace ToDoBot.Services
 
             // Вычисляем время напоминания от времени задачи
             var taskDateTime = item.DateItem.Value.ToDateTime(item.TimeItem.Value);
-            var reminderDateTime = taskDateTime - timeBefore;
-
+            var reminderDateTime = taskDateTime.AddMinutes(-timeBefore);
             if (reminderDateTime < DateTime.Now)
                 throw new Exception("Напоминание не может быть установлено в прошлом");
 
@@ -192,12 +189,12 @@ namespace ToDoBot.Services
 
         public async Task<Reminder> AddReminder15Min(long itemId)
         {
-            return await AddReminderBeforeTask(itemId, TimeSpan.FromMinutes(15));
+            return await AddReminderBeforeTask(itemId, 15);
         }
 
         public async Task<Reminder> AddReminder1Hour(long itemId)
         {
-            return await AddReminderBeforeTask(itemId, TimeSpan.FromHours(1));
+            return await AddReminderBeforeTask(itemId, 60);
         }
 
         public async Task<Reminder> AddReminderInMinutes(long itemId, int minutes)
@@ -205,7 +202,7 @@ namespace ToDoBot.Services
             if (minutes < 1 || minutes > 60)
                 throw new ArgumentException("Минуты должны быть от 1 до 60");
 
-            return await AddReminderBeforeTask(itemId, TimeSpan.FromMinutes(minutes));
+            return await AddReminderBeforeTask(itemId, minutes);
         }
 
         public async Task<bool> RemoveReminder(long reminderId)

@@ -438,12 +438,12 @@ namespace ToDoBot.Services
                 return;
             }
 
-            var tasks = await _actions.GetTodayAndFutureItems(_userCurrentList[userId]);
+            var tasks = await _actions.GetItems(_userCurrentList[userId]);
             var statuses = await _actions.GetStatuses();
 
             if (!tasks.Any())
             {
-                await _botClient.SendTextMessageAsync(chatId, "В листе нет задач на сегодня и будущее.");
+                await _botClient.SendTextMessageAsync(chatId, "В листе нет задач");
                 return;
             }
 
@@ -485,7 +485,7 @@ namespace ToDoBot.Services
                 return;
             }
 
-            var tasks = await _actions.GetTodayAndFutureItems(_userCurrentList[userId]);
+            var tasks = await _actions.GetItems(_userCurrentList[userId]);
             var foundTasks = tasks.Where(t => t.TitleItem.Contains(searchText, StringComparison.OrdinalIgnoreCase)).ToList();
             var statuses = await _actions.GetStatuses();
 
