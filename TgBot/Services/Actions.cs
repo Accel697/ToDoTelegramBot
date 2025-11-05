@@ -88,6 +88,7 @@ namespace ToDoBot.Services
         public async Task<List<Item>> GetItems(long listId)
         {
             return await _context.Items
+                .Where(x => x.ListItem == listId)
                 .OrderBy(x => x.DateItem)
                 .ThenBy(x => x.TimeItem)
                 .ToListAsync();
